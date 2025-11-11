@@ -32,7 +32,10 @@ A comprehensive Discord analytics tool that scans all server channels and genera
    5. Under the "Token" section, click "Reset Token" or "Copy" to get your bot token
       - **Important**: This is NOT the Application ID or Public Key from "General Information"
       - The bot token is a long string that looks like: 
-         - 25-1109-1100 `MTQzNzE0MzgwMzA0Njc5MzM3OA.Ga_yyL.6nk4kX8d6N_twYa0NOa2O-1DF4uhJc8Y5eHZ_0`
+         - 25-1109-1100 `MTQ...Z_0`
+         - 25-1110-2030 'MTQ...f7E'
+         - 25-1110-2100 For Render.com, Move to its 'Environment Variable: DISCORD_BOT_TOKEN' 
+            - *** For Security, if keep in GitHub, have repository be private.
       - You may need to click "Reset Token" to generate a new one if this is your first time
    6. Copy this token (you'll need this for the .env file)
 
