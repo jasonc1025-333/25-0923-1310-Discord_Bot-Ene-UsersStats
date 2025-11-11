@@ -708,7 +708,7 @@ def main():
     load_dotenv('.env-SecretDiscordBotToken-NotPublishToGithub')
     
     # Start dummy web server in background (for Render.com Web Service compatibility)
-    if os.environ.get('RENDER') or os.environ.get('PORT'):
+    if os.environ.get('RENDER_DOT_COM__WEB_SERVICE') or os.environ.get('PORT'):
         server_thread = Thread(target=start_dummy_server, daemon=True)
         server_thread.start()
         print("🌐 Started web server for Render.com compatibility")
