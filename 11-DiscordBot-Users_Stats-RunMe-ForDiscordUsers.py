@@ -26,45 +26,81 @@ DATA_FILE = '12-DiscordBot-Users_Stats-DataReport_Output.json'
 def load_data():
     """Load analytics data from JSON file"""
     if os.path.exists(DATA_FILE):
+        if DEBUG_MODE:
+            print(f"🔍 DEBUG: Loading existing data from {DATA_FILE}")
+        
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            # Convert loaded data back to defaultdicts
-            return {
-                'messages': defaultdict(lambda: defaultdict(int), {
-                    user_id: defaultdict(int, channels) 
-                    for user_id, channels in data.get('messages', {}).items()
-                }),
-                'reactions_given': defaultdict(lambda: defaultdict(lambda: defaultdict(int)), {
-                    user_id: defaultdict(lambda: defaultdict(int), {
-                        channel_id: defaultdict(int, emojis)
-                        for channel_id, emojis in channels.items()
-                    })
-                    for user_id, channels in data.get('reactions_given', {}).items()
-                }),
-                'reactions_received': defaultdict(lambda: defaultdict(lambda: defaultdict(int)), {
-                    user_id: defaultdict(lambda: defaultdict(int), {
-                        channel_id: defaultdict(int, emojis)
-                        for channel_id, emojis in channels.items()
-                    })
-                    for user_id, channels in data.get('reactions_received', {}).items()
+            
+        if DEBUG_MODE:
+            print(f"   📊 Raw data loaded:")
+            print(f"     Messages: {len(data.get('messages', {}))} users")
+            print(f"     Reactions Given: {len(data.get('reactions_given', {}))} users")
+            print(f"     Reactions Received: {len(data.get('reactions_received', {}))} users")
+        
+        # Convert loaded data back to defaultdicts
+        converted_data = {
+            'messages': defaultdict(lambda: defaultdict(int), {
+                user_id: defaultdict(int, channels) 
+                for user_id, channels in data.get('messages', {}).items()
+            }),
+            'reactions_given': defaultdict(lambda: defaultdict(lambda: defaultdict(int)), {
+                user_id: defaultdict(lambda: defaultdict(int), {
+                    channel_id: defaultdict(int, emojis)
+                    for channel_id, emojis in channels.items()
                 })
-            }
-    return {
-        'messages': defaultdict(lambda: defaultdict(int)),  # user_id -> channel_id -> count
-        'reactions_given': defaultdict(lambda: defaultdict(lambda: defaultdict(int))),  # user_id -> channel_id -> emoji -> count
-        'reactions_received': defaultdict(lambda: defaultdict(lambda: defaultdict(int)))  # user_id -> channel_id -> emoji -> count
-    }
+                for user_id, channels in data.get('reactions_given', {}).items()
+            }),
+            'reactions_received': defaultdict(lambda: defaultdict(lambda: defaultdict(int)), {
+                user_id: defaultdict(lambda: defaultdict(int), {
+                    channel_id: defaultdict(int, emojis)
+                    for channel_id, emojis in channels.items()
+                })
+                for user_id, channels in data.get('reactions_received', {}).items()
+            })
+        }
+        
+        if DEBUG_MODE:
+            print(f"   ✅ Data converted to defaultdicts successfully")
+        
+        return converted_data
+    else:
+        if DEBUG_MODE:
+            print(f"🔍 DEBUG: No existing data file found ({DATA_FILE}), creating new data structure")
+        
+        return {
+            'messages': defaultdict(lambda: defaultdict(int)),  # user_id -> channel_id -> count
+            'reactions_given': defaultdict(lambda: defaultdict(lambda: defaultdict(int))),  # user_id -> channel_id -> emoji -> count
+            'reactions_received': defaultdict(lambda: defaultdict(lambda: defaultdict(int)))  # user_id -> channel_id -> emoji -> count
+        }
 
 def save_data(data):
     """Save analytics data to JSON file"""
+    if DEBUG_MODE:
+        print(f"🔍 DEBUG: Saving data to {DATA_FILE}")
+        print(f"   📊 Current data counts:")
+        print(f"     Messages: {len(data['messages'])} users")
+        print(f"     Reactions Given: {len(data['reactions_given'])} users")
+        print(f"     Reactions Received: {len(data['reactions_received'])} users")
+    
     # Convert defaultdicts to regular dicts for JSON serialization
     json_data = {
         'messages': dict(data['messages']),
         'reactions_given': dict(data['reactions_given']),
         'reactions_received': dict(data['reactions_received'])
     }
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(json_data, f, indent=2, ensure_ascii=False)
+    
+    try:
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(json_data, f, indent=2, ensure_ascii=False)
+        
+        if DEBUG_MODE:
+            print(f"   ✅ Data saved successfully")
+    except Exception as e:
+        if DEBUG_MODE:
+            print(f"   ❌ Error saving data: {e}")
+        else:
+            print(f"❌ Error saving analytics data: {e}")
 
 def parse_date(date_str):
     """Parse date string in YYYY-MM-DD format and make it timezone-aware (UTC)"""
@@ -82,26 +118,60 @@ analytics_data = load_data()
 async def on_ready():
     print(f'{bot.user} has connected to Discord!')
     print(f'Bot is in {len(bot.guilds)} server_guilds')
+    
+    if DEBUG_MODE:
+        print(f"\n🔍 DEBUG: Bot startup complete")
+        print(f"   Bot User ID: {bot.user.id}")
+        print(f"   Bot Username: {bot.user.name}")
+        print(f"   Bot Display Name: {bot.user.display_name}")
+        print(f"   Guilds connected to:")
+        for guild in bot.guilds:
+            print(f"     - {guild.name} (ID: {guild.id}, Members: {guild.member_count})")
+        print(f"   Data file: {DATA_FILE}")
+        print(f"   Existing data loaded: {len(analytics_data['messages'])} users with messages, {len(analytics_data['reactions_given'])} users with reactions given")
+        print("="*60)
 
 @bot.event
 async def on_message(message):
     # Don't count bot messages
     if message.author.bot:
+        if DEBUG_MODE:
+            print(f"🔍 DEBUG: Ignoring bot message from {message.author.name}")
         return
     
-    # Debug logging for commands
-    if DEBUG_MODE and message.content.startswith('!'):
-        print(f"\n🔍 DEBUG: Command received - {message.author.name}: {message.content}")
-        print(f"   Current messages data keys: {list(analytics_data['messages'].keys())}")
-    
-    # Track message count
     user_id = str(message.author.id)
     channel_id = str(message.channel.id)
     
+    # Debug logging for all messages (not just commands)
+    if DEBUG_MODE:
+        print(f"\n🔍 DEBUG: Message received")
+        print(f"   👤 User: {message.author.name} (ID: {user_id})")
+        print(f"   📝 Channel: #{message.channel.name} (ID: {channel_id})")
+        print(f"   💬 Content: {message.content[:100]}{'...' if len(message.content) > 100 else ''}")
+        print(f"   🕐 Timestamp: {message.created_at}")
+        
+        # Show current message count before increment
+        current_count = analytics_data['messages'].get(user_id, {}).get(channel_id, 0)
+        print(f"   📊 Current message count for user in this channel: {current_count}")
+    
+    # Debug logging for commands
+    if DEBUG_MODE and message.content.startswith('!'):
+        print(f"   🤖 This is a command!")
+        print(f"   Current total users tracked: {len(analytics_data['messages'])}")
+    
+    # Track message count
     if user_id not in analytics_data['messages']:
         analytics_data['messages'][user_id] = defaultdict(int)
+        if DEBUG_MODE:
+            print(f"   ➕ New user added to message tracking: {user_id}")
     
+    old_count = analytics_data['messages'][user_id][channel_id]
     analytics_data['messages'][user_id][channel_id] += 1
+    new_count = analytics_data['messages'][user_id][channel_id]
+    
+    if DEBUG_MODE:
+        print(f"   📈 Message count updated: {old_count} → {new_count}")
+    
     save_data(analytics_data)
     
     # Process commands
@@ -665,13 +735,24 @@ def start_dummy_server():
     """Start a dummy web server for Render.com compatibility"""
     PORT = int(os.environ.get('PORT', 8000))
     
+    if DEBUG_MODE:
+        print(f"🔍 DEBUG: Starting HTTP server on port {PORT}")
+        print(f"   Environment variables:")
+        print(f"     PORT: {os.environ.get('PORT', 'Not set')}")
+        print(f"     RENDER_DOT_COM__WEB_SERVICE: {os.environ.get('RENDER_DOT_COM__WEB_SERVICE', 'Not set')}")
+    
     class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
         def do_GET(self):
+            if DEBUG_MODE:
+                print(f"🔍 DEBUG: HTTP request received - {self.path} from {self.client_address[0]}")
+            
             if self.path == '/health':
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(b'25-0923-1310-Discord_Bot-Ene-UsersStats is running!')
+                if DEBUG_MODE:
+                    print(f"   ✅ Health check response sent")
             elif self.path == '/':
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html')
@@ -688,15 +769,30 @@ def start_dummy_server():
                 </html>
                 '''
                 self.wfile.write(html_content.encode('utf-8'))
+                if DEBUG_MODE:
+                    print(f"   ✅ Main page response sent")
             else:
                 self.send_response(404)
                 self.send_header('Content-type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(b'404 Not Found')
+                if DEBUG_MODE:
+                    print(f"   ❌ 404 response sent for {self.path}")
     
-    with socketserver.TCPServer(("", PORT), HealthCheckHandler) as httpd:
-        print(f"🌐 Web server running on port {PORT} for Render.com")
-        httpd.serve_forever()
+    try:
+        with socketserver.TCPServer(("", PORT), HealthCheckHandler) as httpd:
+            print(f"🌐 Web server running on port {PORT} for Render.com")
+            if DEBUG_MODE:
+                print(f"   ✅ HTTP server started successfully")
+                print(f"   🔗 Available endpoints:")
+                print(f"     http://localhost:{PORT}/ - Main status page")
+                print(f"     http://localhost:{PORT}/health - Health check")
+            httpd.serve_forever()
+    except Exception as e:
+        if DEBUG_MODE:
+            print(f"   ❌ Error starting HTTP server: {e}")
+        else:
+            print(f"❌ Error starting web server: {e}")
 
 def main():
     """Main function to run the Discord Analytics Bot"""
