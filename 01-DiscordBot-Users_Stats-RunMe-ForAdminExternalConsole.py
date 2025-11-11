@@ -146,11 +146,13 @@ class DiscordAnalyticsReporter:
             elif self.end_date:
                 date_range_info = f" (Until: {self.end_date.strftime('%Y-%m-%d')})"
         
-        # If no limit specified, scan ALL messages in the channel for complete historical data
-        if limit is None:
-            print(f"     🔍 Scanning ALL historical messages{date_range_info} (this may take a while)...")
-        else:
-            print(f"     🔍 Scanning last {limit:,} messages{date_range_info}...")
+        # Always scan ALL messages in the channel for complete historical data
+        print(f"     🔍 Scanning ALL historical messages{date_range_info} (this may take a while)...")
+        
+        if DEBUG_MODE:
+            print(f"🔍 DEBUG: Starting full historical scan for #{channel.name}")
+            print(f"   Channel ID: {channel_id}")
+            print(f"   Date range: {date_range_info if date_range_info else 'All time'}")
         
         # First, get an estimate of total messages for progress tracking
         try:
@@ -190,6 +192,9 @@ class DiscordAnalyticsReporter:
                 history_kwargs['after'] = self.start_date
             if self.end_date:
                 history_kwargs['before'] = self.end_date
+            
+            if DEBUG_MODE:
+                print(f"🔍 DEBUG: Starting message iteration with kwargs: {history_kwargs}")
             
             async for message in channel.history(**history_kwargs):
                 messages_count += 1

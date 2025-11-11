@@ -111,6 +111,99 @@ def parse_date(date_str):
     except ValueError:
         raise ValueError(f"Invalid date format: {date_str}. Use YYYY-MM-DD format.")
 
+async def ensure_reaction_data(ctx, progress_increment=10, scan_message="🔍 **No reaction data found. Scanning recent message history...**"):
+    """
+    Check if reaction data exists for the current channel, and if not, scan historical messages.
+    
+    Args:
+        ctx: Discord command context
+        progress_increment: How often to show progress updates (10 = every 10%, 20 = every 20%)
+        scan_message: Custom message to show when starting scan
+    
+    Returns:
+        bool: True if data exists or was successfully scanned, False if error occurred
+    """
+    channel_id = str(ctx.channel.id)
+    
+    # Check if we have any reaction data for this channel
+    has_reaction_data = False
+    for user_data in analytics_data['reactions_given'].values():
+        if channel_id in user_data and any(user_data[channel_id].values()):
+            has_reaction_data = True
+            break
+    
+    if not has_reaction_data:
+        for user_data in analytics_data['reactions_received'].values():
+            if channel_id in user_data and any(user_data[channel_id].values()):
+                has_reaction_data = True
+                break
+    
+    # If no reaction data exists, automatically scan recent history
+    if not has_reaction_data:
+        status_msg = await ctx.send(scan_message)
+        
+        try:
+            messages_scanned = 0
+            reactions_found = 0
+            limit = 1000  # Scan last 1000 messages
+            last_update_percent = 0
+            
+            async for message in ctx.channel.history(limit=limit):
+                messages_scanned += 1
+                
+                # Process reactions on this message
+                for reaction in message.reactions:
+                    emoji = str(reaction.emoji)
+                    message_author_id = str(message.author.id)
+                    
+                    # Get all users who reacted with this emoji
+                    async for user in reaction.users():
+                        if user.bot:
+                            continue  # Skip bot reactions
+                        
+                        user_id = str(user.id)
+                        reactions_found += 1
+                        
+                        # Track reactions given by user
+                        analytics_data['reactions_given'][user_id][channel_id][emoji] += 1
+                        
+                        # Track reactions received by message author (don't count self-reactions)
+                        if user_id != message_author_id:
+                            analytics_data['reactions_received'][message_author_id][channel_id][emoji] += 1
+                
+                # Update progress with percentage
+                progress_percent = min(int((messages_scanned / limit) * 100), 100)
+                
+                # Show progress at specified increments
+                if progress_percent > 0 and progress_percent % progress_increment == 0 and progress_percent != last_update_percent:
+                    try:
+                        await status_msg.edit(content=f"🔍 **Scanning history...** 📊 {progress_percent:3d}% | {messages_scanned:,} messages, {reactions_found:,} reactions")
+                        last_update_percent = progress_percent
+                    except:
+                        pass  # Ignore edit errors
+                # Show progress every 50 messages to indicate activity
+                elif messages_scanned % 50 == 0:
+                    try:
+                        current_progress = min(int((messages_scanned / limit) * 100), 100)
+                        await status_msg.edit(content=f"🔍 **Scanning history...** 📊 {current_progress:3d}% | {messages_scanned:,} messages, {reactions_found:,} reactions")
+                    except:
+                        pass  # Ignore edit errors
+            
+            # Save the updated data
+            save_data(analytics_data)
+            
+            # Final status with completion
+            final_percent = min(int((messages_scanned / limit) * 100), 100)
+            await status_msg.edit(content=f"✅ **Historical scan complete!** 📊 {final_percent:3d}% | {messages_scanned:,} messages, {reactions_found:,} reactions")
+            
+            return True
+            
+        except Exception as e:
+            await status_msg.edit(content=f"❌ Error scanning history: {str(e)}")
+            return False
+    
+    return True  # Data already exists
+
 # Load data on startup
 analytics_data = load_data()
 
@@ -278,6 +371,16 @@ async def user_stats(ctx, member: discord.Member = None):
     user_id = str(member.id)
     channel_id = str(ctx.channel.id)
     
+    # Ensure reaction data exists, scan if needed
+    scan_success = await ensure_reaction_data(
+        ctx, 
+        progress_increment=20, 
+        scan_message="🔍 **No reaction data found. Scanning recent message history for complete user statistics...**"
+    )
+    
+    if not scan_success:
+        return  # Error occurred during scanning
+    
     # Get message count
     message_count = analytics_data['messages'].get(user_id, {}).get(channel_id, 0)
     
@@ -352,6 +455,16 @@ async def stats_leaderboard(ctx, percentage: int = 50):
         await ctx.send("❌ Percentage must be between 1 and 100!")
         return
     
+    # Ensure reaction data exists, scan if needed
+    scan_success = await ensure_reaction_data(
+        ctx, 
+        progress_increment=10, 
+        scan_message="🔍 **No reaction data found. Scanning recent message history for complete statistics...**"
+    )
+    
+    if not scan_success:
+        return  # Error occurred during scanning
+    
     # Collect data for all categories
     categories = {
         'messages': {},
@@ -374,9 +487,9 @@ async def stats_leaderboard(ctx, percentage: int = 50):
         if channel_id in channels:
             categories['reactions_received'][user_id] = sum(channels[channel_id].values())
     
-    # Check if we have any data
+    # Check if we have any data after scanning
     if not any(categories.values()):
-        await ctx.send("📊 No data available for this channel yet!")
+        await ctx.send("📊 No data available for this channel yet! Try posting some messages and adding reactions.")
         return
     
     # Get all unique users across all categories
@@ -459,74 +572,15 @@ async def stats_mini(ctx):
     """Show overall statistics for the current channel"""
     channel_id = str(ctx.channel.id)
     
-    # Check if we have any reaction data for this channel
-    has_reaction_data = False
-    for user_data in analytics_data['reactions_given'].values():
-        if channel_id in user_data and any(user_data[channel_id].values()):
-            has_reaction_data = True
-            break
+    # Ensure reaction data exists, scan if needed
+    scan_success = await ensure_reaction_data(
+        ctx, 
+        progress_increment=10, 
+        scan_message="🔍 **No reaction data found. Scanning recent message history...**"
+    )
     
-    if not has_reaction_data:
-        for user_data in analytics_data['reactions_received'].values():
-            if channel_id in user_data and any(user_data[channel_id].values()):
-                has_reaction_data = True
-                break
-    
-    # If no reaction data exists, automatically scan recent history
-    if not has_reaction_data:
-        status_msg = await ctx.send("🔍 **No reaction data found. Scanning recent message history...**")
-        
-        try:
-            messages_scanned = 0
-            reactions_found = 0
-            limit = 1000  # Scan last 1000 messages
-            last_update_percent = 0
-            
-            async for message in ctx.channel.history(limit=limit):
-                messages_scanned += 1
-                
-                # Process reactions on this message
-                for reaction in message.reactions:
-                    emoji = str(reaction.emoji)
-                    message_author_id = str(message.author.id)
-                    
-                    # Get all users who reacted with this emoji
-                    async for user in reaction.users():
-                        if user.bot:
-                            continue  # Skip bot reactions
-                        
-                        user_id = str(user.id)
-                        reactions_found += 1
-                        
-                        # Track reactions given by user
-                        analytics_data['reactions_given'][user_id][channel_id][emoji] += 1
-                        
-                        # Track reactions received by message author (don't count self-reactions)
-                        if user_id != message_author_id:
-                            analytics_data['reactions_received'][message_author_id][channel_id][emoji] += 1
-                
-                # Update progress with percentage like admin console script
-                progress_percent = min(int((messages_scanned / limit) * 100), 100)
-                
-                # Show progress at 10% increments or every 50 messages
-                if (progress_percent > 0 and progress_percent % 10 == 0 and progress_percent != last_update_percent) or messages_scanned % 50 == 0:
-                    try:
-                        await status_msg.edit(content=f"🔍 **Scanning history...** 📊 {progress_percent:3d}% | {messages_scanned:,} messages, {reactions_found:,} reactions")
-                        if progress_percent % 10 == 0:
-                            last_update_percent = progress_percent
-                    except:
-                        pass  # Ignore edit errors
-            
-            # Save the updated data
-            save_data(analytics_data)
-            
-            # Final status with 100% completion
-            final_percent = min(int((messages_scanned / limit) * 100), 100)
-            await status_msg.edit(content=f"✅ **Scan complete!** 📊 {final_percent:3d}% | {messages_scanned:,} messages, {reactions_found:,} reactions")
-            
-        except Exception as e:
-            await status_msg.edit(content=f"❌ Error scanning history: {str(e)}")
-            return
+    if not scan_success:
+        return  # Error occurred during scanning
     
     total_messages = 0
     total_reactions_given = 0
