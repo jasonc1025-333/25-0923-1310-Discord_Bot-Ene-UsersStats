@@ -1,3 +1,4 @@
 .env-SecretDiscordBotToken-NotPublishToGithub
 __pycache__/
 *.pyc
+02-DiscordBot-Users_Stats-DataReport_Output.json
