@@ -13,3 +13,4 @@ __pycache__/
 #
 02-DiscordBot-Users_Stats-DataReport_Output.json
 12-DiscordBot-Users_Stats-DataReport_Output.json
+logs/discord_bot.log
