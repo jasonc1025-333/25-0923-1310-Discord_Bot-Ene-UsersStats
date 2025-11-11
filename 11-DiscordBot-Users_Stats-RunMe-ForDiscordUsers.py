@@ -9,8 +9,8 @@ from threading import Thread
 import http.server
 import socketserver
 
-# Debug mode flag (can be set via environment variable)
-DEBUG_MODE = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
+# Debug mode flag (will be set after loading environment variables)
+DEBUG_MODE = False
 
 # Bot configuration
 intents = discord.Intents.default()
@@ -857,8 +857,12 @@ def main():
     # * If file not found (e.g. running in GitHub), then nothing is loaded and continuers error-free
     load_dotenv('.env-SecretDiscordBotToken-NotPublishToGithub')
     
-    # ALWAYS print DEBUG_MODE status at startup for troubleshooting
+    # Set DEBUG_MODE after loading environment variables
+    global DEBUG_MODE
     debug_env_value = os.getenv('DEBUG_MODE', 'NOT_SET')
+    DEBUG_MODE = debug_env_value.lower() == 'true'
+    
+    # ALWAYS print DEBUG_MODE status at startup for troubleshooting
     print(f"🔧 DEBUG_MODE Environment Variable: '{debug_env_value}'")
     print(f"🔧 DEBUG_MODE Evaluated As: {DEBUG_MODE}")
     if DEBUG_MODE:
