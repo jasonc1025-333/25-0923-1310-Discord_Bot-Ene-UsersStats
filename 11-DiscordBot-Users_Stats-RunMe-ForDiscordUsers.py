@@ -803,6 +803,16 @@ def main():
     # * If file not found (e.g. running in GitHub), then nothing is loaded and continuers error-free
     load_dotenv('.env-SecretDiscordBotToken-NotPublishToGithub')
     
+    # ALWAYS print DEBUG_MODE status at startup for troubleshooting
+    debug_env_value = os.getenv('DEBUG_MODE', 'NOT_SET')
+    print(f"🔧 DEBUG_MODE Environment Variable: '{debug_env_value}'")
+    print(f"🔧 DEBUG_MODE Evaluated As: {DEBUG_MODE}")
+    if DEBUG_MODE:
+        print("✅ DEBUG MODE IS ENABLED - You should see detailed debug output")
+    else:
+        print("❌ DEBUG MODE IS DISABLED - Set DEBUG_MODE=true to enable debug output")
+    print("="*60)
+    
     # Start dummy web server in background (for Render.com Web Service compatibility)
     if os.environ.get('RENDER_DOT_COM__WEB_SERVICE') or os.environ.get('PORT'):
         server_thread = Thread(target=start_dummy_server, daemon=True)

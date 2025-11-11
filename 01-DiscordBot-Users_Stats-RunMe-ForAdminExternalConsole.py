@@ -13,6 +13,9 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
+# Debug mode flag (can be set via environment variable)
+DEBUG_MODE = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
+
 # Bot configuration
 intents = discord.Intents.default()
 intents.message_content = True
@@ -511,6 +514,17 @@ def main():
     
     # Load environment variables from custom .env file
     load_dotenv('.env-SecretDiscordBotToken-NotPublishToGithub')
+    
+    # ALWAYS print DEBUG_MODE status at startup for troubleshooting
+    debug_env_value = os.getenv('DEBUG_MODE', 'NOT_SET')
+    print(f"🔧 DEBUG_MODE Environment Variable: '{debug_env_value}'")
+    print(f"🔧 DEBUG_MODE Evaluated As: {DEBUG_MODE}")
+    if DEBUG_MODE:
+        print("✅ DEBUG MODE IS ENABLED - You should see detailed debug output")
+    else:
+        print("❌ DEBUG MODE IS DISABLED - Set DEBUG_MODE=true to enable debug output")
+    print("="*60)
+    print()
     
     # Get the bot token
     token = os.getenv('DISCORD_BOT_TOKEN')
