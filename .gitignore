@@ -1,1 +1,3 @@
-.env-SecretDiscordBotToken-NotPublishToGithub.txt
+.env-SecretDiscordBotToken-NotPublishToGithub
+__pycache__/
+*.pyc

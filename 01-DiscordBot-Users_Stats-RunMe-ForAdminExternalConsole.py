@@ -509,8 +509,8 @@ def main():
     
     print()
     
-    # Load environment variables
-    load_dotenv()
+    # Load environment variables from custom .env file
+    load_dotenv('.env-SecretDiscordBotToken-NotPublishToGithub')
     
     # Get the bot token
     token = os.getenv('DISCORD_BOT_TOKEN')

@@ -5,6 +5,9 @@ import os
 from datetime import datetime, timezone
 from collections import defaultdict
 import asyncio
+from threading import Thread
+import http.server
+import socketserver
 
 # Debug mode flag (can be set via environment variable)
 DEBUG_MODE = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
@@ -602,7 +605,7 @@ async def debug_data(ctx):
     
     # Reactions given data
     given_count = len(analytics_data['reactions_given'])
-    embed.add_field(name="� Reactions Given", value=f"{given_count} users tracked", inline=True)
+    embed.add_field(name="👍 Reactions Given", value=f"{given_count} users tracked", inline=True)
     
     # Reactions received data
     received_count = len(analytics_data['reactions_received'])
@@ -658,19 +661,66 @@ async def debug_clear(ctx):
     await ctx.send("🔍 **Debug**: All analytics data cleared!")
     print(f"\n🔍 DEBUG: Analytics data cleared by {ctx.author.name}")
 
+def start_dummy_server():
+    """Start a dummy web server for Render.com compatibility"""
+    PORT = int(os.environ.get('PORT', 8000))
+    
+    class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/health':
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'25-0923-1310-Discord_Bot-Ene-UsersStats is running!')
+            elif self.path == '/':
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                html_content = '''
+                <html>
+                <head><title>25-0923-1310-Discord_Bot-Ene-UsersStats</title></head>
+                <body>
+                    <h1>25-0923-1310-Discord_Bot-Ene-UsersStats</h1>
+                    <p>Bot is online and running!</p>
+                    <p>Tracking Discord messages and reactions</p>
+                    <p><a href="/health">Health Check</a></p>
+                </body>
+                </html>
+                '''
+                self.wfile.write(html_content.encode('utf-8'))
+            else:
+                self.send_response(404)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'404 Not Found')
+    
+    with socketserver.TCPServer(("", PORT), HealthCheckHandler) as httpd:
+        print(f"🌐 Web server running on port {PORT} for Render.com")
+        httpd.serve_forever()
+
 def main():
     """Main function to run the Discord Analytics Bot"""
     from dotenv import load_dotenv
     
-    # Load environment variables from .env file
-    load_dotenv()
+    # jwc 25-1110-2300: Get 'DISCORD_BOT_TOKEN'
+    # Load environment variables from custom .env file.  
+    # * If file not found (e.g. running in GitHub), then nothing is loaded and continuers error-free
+    load_dotenv('.env-SecretDiscordBotToken-NotPublishToGithub')
     
-    # Get the bot token
+    # Start dummy web server in background (for Render.com Web Service compatibility)
+    if os.environ.get('RENDER') or os.environ.get('PORT'):
+        server_thread = Thread(target=start_dummy_server, daemon=True)
+        server_thread.start()
+        print("🌐 Started web server for Render.com compatibility")
+    
+    # jwc 25-1110-2300: Apply Above 'DISCORD_BOT_TOKEN'
+    # * 'DISCORD_BOT_TOKEN' should be set in the local .env file 
+    # * -or- as Cloud environment_variable (e.g. Render.com)
     token = os.getenv('DISCORD_BOT_TOKEN')
     
     if not token:
         print("❌ Error: DISCORD_BOT_TOKEN not found!")
-        print("\n� Setup Instructions:")
+        print("\n📋 Setup Instructions:")
         print("1. Copy .env.example to .env")
         print("2. Edit .env and add your Discord bot token")
         print("3. Run this script again")
