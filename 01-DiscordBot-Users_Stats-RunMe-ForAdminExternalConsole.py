@@ -390,30 +390,30 @@ class DiscordAnalyticsReporter:
         
         print()
         
-        # Top Users by Category
-        print("🏆 TOP 10 LEADERBOARDS")
+        # Complete User Leaderboards
+        print("🏆 COMPLETE USER LEADERBOARDS")
         print("-" * 40)
         
-        # Top by messages
-        top_messages = sorted(user_stats.items(), key=lambda x: x[1]['total_messages'], reverse=True)[:10]
-        print("\n💬 Top Message Senders:")
-        for i, (user_id, stats) in enumerate(top_messages, 1):
-            if stats['total_messages'] > 0:
-                print(f"  {i:2d}. {stats['display_name']:<25} {stats['total_messages']:,} messages")
+        # Top by messages (all users with messages)
+        top_messages = sorted(user_stats.items(), key=lambda x: x[1]['total_messages'], reverse=True)
+        users_with_messages = [item for item in top_messages if item[1]['total_messages'] > 0]
+        print(f"\n💬 Message Senders Leaderboard ({len(users_with_messages)} users):")
+        for i, (user_id, stats) in enumerate(users_with_messages, 1):
+            print(f"  {i:2d}. {stats['display_name']:<25} {stats['total_messages']:,} messages")
         
-        # Top by reactions given
-        top_reactions_given = sorted(user_stats.items(), key=lambda x: x[1]['total_reactions_given'], reverse=True)[:10]
-        print("\n👍 Top Reaction Givers:")
-        for i, (user_id, stats) in enumerate(top_reactions_given, 1):
-            if stats['total_reactions_given'] > 0:
-                print(f"  {i:2d}. {stats['display_name']:<25} {stats['total_reactions_given']:,} reactions given")
+        # Top by reactions given (all users with reactions given)
+        top_reactions_given = sorted(user_stats.items(), key=lambda x: x[1]['total_reactions_given'], reverse=True)
+        users_with_reactions_given = [item for item in top_reactions_given if item[1]['total_reactions_given'] > 0]
+        print(f"\n👍 Reaction Givers Leaderboard ({len(users_with_reactions_given)} users):")
+        for i, (user_id, stats) in enumerate(users_with_reactions_given, 1):
+            print(f"  {i:2d}. {stats['display_name']:<25} {stats['total_reactions_given']:,} reactions given")
         
-        # Top by reactions received
-        top_reactions_received = sorted(user_stats.items(), key=lambda x: x[1]['total_reactions_received'], reverse=True)[:10]
-        print("\n⭐ Top Reaction Receivers:")
-        for i, (user_id, stats) in enumerate(top_reactions_received, 1):
-            if stats['total_reactions_received'] > 0:
-                print(f"  {i:2d}. {stats['display_name']:<25} {stats['total_reactions_received']:,} reactions received")
+        # Top by reactions received (all users with reactions received)
+        top_reactions_received = sorted(user_stats.items(), key=lambda x: x[1]['total_reactions_received'], reverse=True)
+        users_with_reactions_received = [item for item in top_reactions_received if item[1]['total_reactions_received'] > 0]
+        print(f"\n⭐ Reaction Receivers Leaderboard ({len(users_with_reactions_received)} users):")
+        for i, (user_id, stats) in enumerate(users_with_reactions_received, 1):
+            print(f"  {i:2d}. {stats['display_name']:<25} {stats['total_reactions_received']:,} reactions received")
         
         print()
         
