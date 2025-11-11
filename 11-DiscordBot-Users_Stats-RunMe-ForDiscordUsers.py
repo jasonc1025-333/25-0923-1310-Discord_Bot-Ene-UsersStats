@@ -20,19 +20,30 @@ def setup_logging():
     # Create logs directory if it doesn't exist
     os.makedirs('logs', exist_ok=True)
     
-    # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            # Console handler (for local development)
-            logging.StreamHandler(sys.stdout),
-            # File handler (for cloud platforms)
-            logging.FileHandler('logs/discord_bot.log', encoding='utf-8'),
-            # Also log to stderr (some cloud platforms prefer this)
-            logging.StreamHandler(sys.stderr)
-        ]
-    )
+    # Check if we're running on Render.com
+    is_render = os.environ.get('RENDER_SERVICE_NAME') or os.environ.get('RENDER') or os.environ.get('PORT')
+    
+    if is_render:
+        # For Render.com: Use only stdout to avoid duplication
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.StreamHandler(sys.stdout)
+            ],
+            force=True  # Override any existing configuration
+        )
+    else:
+        # For local development: Use multiple handlers
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.StreamHandler(sys.stdout),
+                logging.FileHandler('logs/discord_bot.log', encoding='utf-8')
+            ],
+            force=True  # Override any existing configuration
+        )
     
     # Ensure immediate flushing for cloud platforms
     for handler in logging.getLogger().handlers:
@@ -45,25 +56,35 @@ def setup_logging():
 logger = setup_logging()
 
 def log_and_print(message, level='info'):
-    """Log message and also print it (for compatibility)"""
-    # Force flush stdout/stderr
-    sys.stdout.flush()
-    sys.stderr.flush()
+    """Log message for cloud platforms (optimized for Render.com)"""
+    # Check if we're running on Render.com
+    is_render = os.environ.get('RENDER_SERVICE_NAME') or os.environ.get('RENDER') or os.environ.get('PORT')
     
-    # Log using logging module
-    if level == 'error':
-        logger.error(message)
-    elif level == 'warning':
-        logger.warning(message)
-    elif level == 'debug':
-        logger.debug(message)
+    if is_render:
+        # For Render.com: Only use logging (no print to avoid duplication)
+        if level == 'error':
+            logger.error(message)
+        elif level == 'warning':
+            logger.warning(message)
+        elif level == 'debug':
+            logger.debug(message)
+        else:
+            logger.info(message)
     else:
-        logger.info(message)
+        # For local development: Use both logging and print
+        if level == 'error':
+            logger.error(message)
+        elif level == 'warning':
+            logger.warning(message)
+        elif level == 'debug':
+            logger.debug(message)
+        else:
+            logger.info(message)
+        
+        # Also print for immediate visibility in local development
+        print(message, flush=True)
     
-    # Also print for immediate visibility
-    print(message, flush=True)
-    
-    # Force flush again
+    # Force flush for immediate visibility
     sys.stdout.flush()
     sys.stderr.flush()
 
@@ -905,28 +926,28 @@ def start_dummy_server():
 
 def main():
     """Main function to run the Discord Analytics Bot"""
-    log_and_print("🚀 DISCORD BOT STARTUP INITIATED")
-    log_and_print("📅 Startup Time: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    log_and_print("🐍 Python Version: " + sys.version)
-    log_and_print("📁 Working Directory: " + os.getcwd())
-    log_and_print("="*60)
+    print("🚀 DISCORD BOT STARTUP INITIATED", flush=True)
+    print("📅 Startup Time: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'), flush=True)
+    print("🐍 Python Version: " + sys.version, flush=True)
+    print("📁 Working Directory: " + os.getcwd(), flush=True)
+    print("="*60, flush=True)
     
     try:
         from dotenv import load_dotenv
-        log_and_print("✅ dotenv import successful")
+        print("✅ dotenv import successful", flush=True)
     except ImportError as e:
-        log_and_print("⚠️ dotenv not available: " + str(e), 'warning')
-        log_and_print("   This is normal for cloud deployments")
+        print("⚠️ dotenv not available: " + str(e), flush=True)
+        print("   This is normal for cloud deployments", flush=True)
     
     # jwc 25-1110-2300: Get 'DISCORD_BOT_TOKEN'
     # Load environment variables from custom .env file (local development only)
     # * If file not found (e.g. running on Render.com), then nothing is loaded and continues error-free
     try:
         load_dotenv('.env-SecretDiscordBotToken-NotPublishToGithub')
-        log_and_print("📁 Local .env file loaded successfully")
+        print("📁 Local .env file loaded successfully", flush=True)
     except Exception as e:
-        log_and_print("📁 No local .env file found (normal for cloud deployment)")
-        log_and_print("   Details: " + str(e))
+        print("📁 No local .env file found (normal for cloud deployment)", flush=True)
+        print("   Details: " + str(e), flush=True)
     
     # Set DEBUG_MODE after loading environment variables
     # Check multiple possible environment variable names for compatibility
@@ -940,17 +961,17 @@ def main():
     DEBUG_MODE = debug_env_value.lower() in ['true', '1', 'yes', 'on']
     
     # ALWAYS print DEBUG_MODE status at startup for troubleshooting
-    log_and_print("🔧 DEBUG_MODE Environment Variable: '" + debug_env_value + "'")
-    log_and_print("🔧 DEBUG_MODE Evaluated As: " + str(DEBUG_MODE))
+    print("🔧 DEBUG_MODE Environment Variable: '" + debug_env_value + "'", flush=True)
+    print("🔧 DEBUG_MODE Evaluated As: " + str(DEBUG_MODE), flush=True)
     if DEBUG_MODE:
-        log_and_print("✅ DEBUG MODE IS ENABLED - You should see detailed debug output")
+        print("✅ DEBUG MODE IS ENABLED - You should see detailed debug output", flush=True)
         # Set logging level to DEBUG when debug mode is enabled
         logging.getLogger().setLevel(logging.DEBUG)
     else:
-        log_and_print("❌ DEBUG MODE IS DISABLED - Set DEBUG_MODE=true to enable debug output")
+        print("❌ DEBUG MODE IS DISABLED - Set DEBUG_MODE=true to enable debug output", flush=True)
     
     # Show all environment variables for debugging (only first few characters for security)
-    log_and_print("🔧 Environment Variables Check:")
+    print("🔧 Environment Variables Check:", flush=True)
     env_vars_to_check = ['DEBUG_MODE', 'DEBUG', 'DISCORD_DEBUG_MODE', 'DISCORD_BOT_TOKEN', 'PORT', 'RENDER', 'RENDER_SERVICE_NAME']
     for var in env_vars_to_check:
         value = os.getenv(var, 'NOT_SET')
@@ -959,15 +980,15 @@ def main():
             display_value = value[:10] + '...' if len(value) > 10 else value
         else:
             display_value = value
-        log_and_print("   " + var + ": '" + display_value + "'")
-    log_and_print("="*60)
+        print("   " + var + ": '" + display_value + "'", flush=True)
+    print("="*60, flush=True)
     
     # Check if we're running on Render.com
     is_render = os.environ.get('RENDER_SERVICE_NAME') or os.environ.get('RENDER') or os.environ.get('PORT')
     if is_render:
-        log_and_print("🌐 DETECTED: Running on Render.com")
-        log_and_print("   Service Name: " + os.environ.get('RENDER_SERVICE_NAME', 'Unknown'))
-        log_and_print("   Port: " + os.environ.get('PORT', 'Not set'))
+        print("🌐 DETECTED: Running on Render.com", flush=True)
+        print("   Service Name: " + os.environ.get('RENDER_SERVICE_NAME', 'Unknown'), flush=True)
+        print("   Port: " + os.environ.get('PORT', 'Not set'), flush=True)
         
         # Create a status file for Render.com
         try:
@@ -975,21 +996,21 @@ def main():
                 f.write("Bot started at: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "\n")
                 f.write("DEBUG_MODE: " + str(DEBUG_MODE) + "\n")
                 f.write("Service: " + os.environ.get('RENDER_SERVICE_NAME', 'Unknown') + "\n")
-            log_and_print("📄 Created render_status.txt file")
+            print("📄 Created render_status.txt file", flush=True)
         except Exception as e:
-            log_and_print("⚠️ Could not create status file: " + str(e), 'warning')
+            print("⚠️ Could not create status file: " + str(e), flush=True)
     else:
-        log_and_print("💻 DETECTED: Running locally")
+        print("💻 DETECTED: Running locally", flush=True)
     
     # Start dummy web server in background (for Render.com Web Service compatibility)
     if is_render:
-        log_and_print("🌐 Starting web server for Render.com compatibility...")
+        print("🌐 Starting web server for Render.com compatibility...", flush=True)
         try:
             server_thread = Thread(target=start_dummy_server, daemon=True)
             server_thread.start()
-            log_and_print("✅ Web server started successfully")
+            print("✅ Web server started successfully", flush=True)
         except Exception as e:
-            log_and_print("❌ Error starting web server: " + str(e), 'error')
+            print("❌ Error starting web server: " + str(e), flush=True)
     
     # jwc 25-1110-2300: Apply Above 'DISCORD_BOT_TOKEN'
     # * 'DISCORD_BOT_TOKEN' should be set in the local .env file 
@@ -997,90 +1018,90 @@ def main():
     token = os.getenv('DISCORD_BOT_TOKEN')
     
     if not token:
-        log_and_print("❌ CRITICAL ERROR: DISCORD_BOT_TOKEN not found!", 'error')
-        log_and_print("")
-        log_and_print("📋 Setup Instructions:")
+        print("❌ CRITICAL ERROR: DISCORD_BOT_TOKEN not found!", flush=True)
+        print("", flush=True)
+        print("📋 Setup Instructions:", flush=True)
         if is_render:
-            log_and_print("For Render.com:")
-            log_and_print("1. Go to your Render.com dashboard")
-            log_and_print("2. Select your service")
-            log_and_print("3. Go to Environment tab")
-            log_and_print("4. Add DISCORD_BOT_TOKEN environment variable")
-            log_and_print("5. Deploy the changes")
+            print("For Render.com:", flush=True)
+            print("1. Go to your Render.com dashboard", flush=True)
+            print("2. Select your service", flush=True)
+            print("3. Go to Environment tab", flush=True)
+            print("4. Add DISCORD_BOT_TOKEN environment variable", flush=True)
+            print("5. Deploy the changes", flush=True)
         else:
-            log_and_print("For local development:")
-            log_and_print("1. Copy .env.example to .env")
-            log_and_print("2. Edit .env and add your Discord bot token")
-            log_and_print("3. Run this script again")
-        log_and_print("")
-        log_and_print("🔗 Get a bot token at: https://discord.com/developers/applications")
-        log_and_print("🛑 EXITING DUE TO MISSING TOKEN", 'error')
+            print("For local development:", flush=True)
+            print("1. Copy .env.example to .env", flush=True)
+            print("2. Edit .env and add your Discord bot token", flush=True)
+            print("3. Run this script again", flush=True)
+        print("", flush=True)
+        print("🔗 Get a bot token at: https://discord.com/developers/applications", flush=True)
+        print("🛑 EXITING DUE TO MISSING TOKEN", flush=True)
         return
     
-    log_and_print("✅ DISCORD_BOT_TOKEN found and loaded")
-    log_and_print("🚀 Starting Discord Analytics Bot...")
+    print("✅ DISCORD_BOT_TOKEN found and loaded", flush=True)
+    print("🚀 Starting Discord Analytics Bot...", flush=True)
     
     if DEBUG_MODE:
-        log_and_print("🔍 Debug mode: Enhanced logging enabled")
-        log_and_print("🔧 Additional debug commands: !debug_data, !debug_reactions, !debug_clear")
+        print("🔍 Debug mode: Enhanced logging enabled", flush=True)
+        print("🔧 Additional debug commands: !debug_data, !debug_reactions, !debug_clear", flush=True)
     
-    log_and_print("📊 The bot will track messages and reactions in real-time!")
-    log_and_print("💡 Use !stats_help to see available commands")
-    log_and_print("")
-    log_and_print("="*50)
-    log_and_print("🔄 ATTEMPTING DISCORD CONNECTION...")
+    print("📊 The bot will track messages and reactions in real-time!", flush=True)
+    print("💡 Use !stats_help to see available commands", flush=True)
+    print("", flush=True)
+    print("="*50, flush=True)
+    print("🔄 ATTEMPTING DISCORD CONNECTION...", flush=True)
     
     try:
         # Import discord here to catch import errors
         import discord
-        log_and_print("✅ Discord.py import successful")
-        log_and_print("📦 Discord.py version: " + discord.__version__)
+        print("✅ Discord.py import successful", flush=True)
+        print("📦 Discord.py version: " + discord.__version__, flush=True)
         
         # Try to start the bot
-        log_and_print("🔗 Connecting to Discord...")
+        print("🔗 Connecting to Discord...", flush=True)
         bot.run(token)
         
     except ImportError as e:
-        log_and_print("❌ CRITICAL ERROR: Discord.py not installed: " + str(e), 'error')
-        log_and_print("🔧 Solution: Install discord.py")
-        log_and_print("   pip install discord.py")
+        print("❌ CRITICAL ERROR: Discord.py not installed: " + str(e), flush=True)
+        print("🔧 Solution: Install discord.py", flush=True)
+        print("   pip install discord.py", flush=True)
         
     except discord.LoginFailure as e:
-        log_and_print("❌ CRITICAL ERROR: Discord login failed: " + str(e), 'error')
-        log_and_print("🔧 Solutions:")
-        log_and_print("- Check that your bot token is correct")
-        log_and_print("- Make sure the token hasn't expired")
-        log_and_print("- Verify the bot exists in Discord Developer Portal")
+        print("❌ CRITICAL ERROR: Discord login failed: " + str(e), flush=True)
+        print("🔧 Solutions:", flush=True)
+        print("- Check that your bot token is correct", flush=True)
+        print("- Make sure the token hasn't expired", flush=True)
+        print("- Verify the bot exists in Discord Developer Portal", flush=True)
         
     except discord.PrivilegedIntentsRequired as e:
-        log_and_print("❌ CRITICAL ERROR: Privileged intents required: " + str(e), 'error')
-        log_and_print("🔧 Solution:")
-        log_and_print("1. Go to Discord Developer Portal")
-        log_and_print("2. Select your bot application")
-        log_and_print("3. Go to Bot section")
-        log_and_print("4. Enable 'Message Content Intent' and 'Server Members Intent'")
-        log_and_print("5. Save changes and restart the bot")
+        print("❌ CRITICAL ERROR: Privileged intents required: " + str(e), flush=True)
+        print("🔧 Solution:", flush=True)
+        print("1. Go to Discord Developer Portal", flush=True)
+        print("2. Select your bot application", flush=True)
+        print("3. Go to Bot section", flush=True)
+        print("4. Enable 'Message Content Intent' and 'Server Members Intent'", flush=True)
+        print("5. Save changes and restart the bot", flush=True)
         
     except Exception as e:
-        log_and_print("❌ UNEXPECTED ERROR: " + str(e), 'error')
-        log_and_print("   Error type: " + type(e).__name__)
-        log_and_print("   Error details: " + str(e))
-        log_and_print("")
-        log_and_print("🔧 Common solutions:")
-        log_and_print("- Check that your bot token is correct")
-        log_and_print("- Ensure the bot has proper permissions")
-        log_and_print("- Make sure discord.py is installed: pip install discord.py")
-        log_and_print("- Enable privileged intents in Discord Developer Portal")
-        log_and_print("- Check internet connection")
+        print("❌ UNEXPECTED ERROR: " + str(e), flush=True)
+        print("   Error type: " + type(e).__name__, flush=True)
+        print("   Error details: " + str(e), flush=True)
+        print("", flush=True)
+        print("🔧 Common solutions:", flush=True)
+        print("- Check that your bot token is correct", flush=True)
+        print("- Ensure the bot has proper permissions", flush=True)
+        print("- Make sure discord.py is installed: pip install discord.py", flush=True)
+        print("- Enable privileged intents in Discord Developer Portal", flush=True)
+        print("- Check internet connection", flush=True)
         
         # Print full traceback in debug mode
         if DEBUG_MODE:
             import traceback
-            log_and_print("")
-            log_and_print("🔍 DEBUG: Full error traceback:", 'debug')
+            print("", flush=True)
+            print("🔍 DEBUG: Full error traceback:", flush=True)
             traceback.print_exc()
     
-    log_and_print("🛑 BOT EXECUTION COMPLETED")
+    print("🛑 BOT EXECUTION COMPLETED", flush=True)
 
 if __name__ == "__main__":
     main()
