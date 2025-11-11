@@ -853,14 +853,24 @@ def main():
     from dotenv import load_dotenv
     
     # jwc 25-1110-2300: Get 'DISCORD_BOT_TOKEN'
-    # Load environment variables from custom .env file.  
-    # * If file not found (e.g. running in GitHub), then nothing is loaded and continuers error-free
-    load_dotenv('.env-SecretDiscordBotToken-NotPublishToGithub')
+    # Load environment variables from custom .env file (local development only)
+    # * If file not found (e.g. running on Render.com), then nothing is loaded and continues error-free
+    try:
+        load_dotenv('.env-SecretDiscordBotToken-NotPublishToGithub')
+        print("📁 Local .env file loaded successfully")
+    except Exception as e:
+        print(f"📁 No local .env file found (normal for cloud deployment): {e}")
     
     # Set DEBUG_MODE after loading environment variables
+    # Check multiple possible environment variable names for compatibility
     global DEBUG_MODE
-    debug_env_value = os.getenv('DEBUG_MODE', 'NOT_SET')
-    DEBUG_MODE = debug_env_value.lower() == 'true'
+    debug_env_value = (
+        os.getenv('DEBUG_MODE') or 
+        os.getenv('DEBUG') or 
+        os.getenv('DISCORD_DEBUG_MODE') or 
+        'NOT_SET'
+    )
+    DEBUG_MODE = debug_env_value.lower() in ['true', '1', 'yes', 'on']
     
     # ALWAYS print DEBUG_MODE status at startup for troubleshooting
     print(f"🔧 DEBUG_MODE Environment Variable: '{debug_env_value}'")
@@ -869,6 +879,18 @@ def main():
         print("✅ DEBUG MODE IS ENABLED - You should see detailed debug output")
     else:
         print("❌ DEBUG MODE IS DISABLED - Set DEBUG_MODE=true to enable debug output")
+    
+    # Show all environment variables for debugging (only first few characters for security)
+    print(f"🔧 Environment Variables Check:")
+    env_vars_to_check = ['DEBUG_MODE', 'DEBUG', 'DISCORD_DEBUG_MODE', 'DISCORD_BOT_TOKEN', 'PORT', 'RENDER']
+    for var in env_vars_to_check:
+        value = os.getenv(var, 'NOT_SET')
+        if 'TOKEN' in var and value != 'NOT_SET':
+            # Only show first 10 characters of tokens for security
+            display_value = value[:10] + '...' if len(value) > 10 else value
+        else:
+            display_value = value
+        print(f"   {var}: '{display_value}'")
     print("="*60)
     
     # Start dummy web server in background (for Render.com Web Service compatibility)
