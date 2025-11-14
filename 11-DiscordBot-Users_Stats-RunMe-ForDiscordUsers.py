@@ -16,15 +16,15 @@ DEBUG_MODE = False
 
 # Set up logging that works better with cloud platforms
 def setup_logging():
-    """Set up logging that works with cloud platforms like Render.com"""
+    """Set up logging for cloud platforms"""
     # Create logs directory if it doesn't exist
     os.makedirs('logs', exist_ok=True)
     
-    # Check if we're running on Render.com
-    is_render = os.environ.get('RENDER_SERVICE_NAME') or os.environ.get('RENDER') or os.environ.get('PORT')
+    # Check if we're running on a cloud platform (Replit, etc.)
+    is_cloud = os.environ.get('REPL_ID') or os.environ.get('PORT')
     
-    if is_render:
-        # For Render.com: Use only stdout to avoid duplication
+    if is_cloud:
+        # For cloud platforms: Use only stdout to avoid duplication
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s',
@@ -56,12 +56,12 @@ def setup_logging():
 logger = setup_logging()
 
 def log_and_print(message, level='info'):
-    """Log message for cloud platforms (optimized for Render.com)"""
-    # Check if we're running on Render.com
-    is_render = os.environ.get('RENDER_SERVICE_NAME') or os.environ.get('RENDER') or os.environ.get('PORT')
+    """Log message for cloud platforms"""
+    # Check if we're running on a cloud platform
+    is_cloud = os.environ.get('REPL_ID') or os.environ.get('PORT')
     
-    if is_render:
-        # For Render.com: Only use logging (no print to avoid duplication)
+    if is_cloud:
+        # For cloud platforms: Only use logging (no print to avoid duplication)
         if level == 'error':
             logger.error(message)
         elif level == 'warning':
@@ -862,14 +862,14 @@ async def debug_clear(ctx):
     print(f"\n🔍 DEBUG: Analytics data cleared by {ctx.author.name}")
 
 def start_dummy_server():
-    """Start a dummy web server for Render.com compatibility"""
+    """Start a dummy web server for cloud platform compatibility"""
     PORT = int(os.environ.get('PORT', 8000))
     
     if DEBUG_MODE:
         print(f"🔍 DEBUG: Starting HTTP server on port {PORT}")
         print(f"   Environment variables:")
         print(f"     PORT: {os.environ.get('PORT', 'Not set')}")
-        print(f"     RENDER_DOT_COM__WEB_SERVICE: {os.environ.get('RENDER_DOT_COM__WEB_SERVICE', 'Not set')}")
+        print(f"     REPL_ID: {os.environ.get('REPL_ID', 'Not set')}")
     
     class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
         def do_GET(self):
@@ -911,7 +911,7 @@ def start_dummy_server():
     
     try:
         with socketserver.TCPServer(("", PORT), HealthCheckHandler) as httpd:
-            print(f"🌐 Web server running on port {PORT} for Render.com")
+            print(f"🌐 Web server running on port {PORT} for cloud platform")
             if DEBUG_MODE:
                 print(f"   ✅ HTTP server started successfully")
                 print(f"   🔗 Available endpoints:")
@@ -972,7 +972,7 @@ def main():
     
     # Show all environment variables for debugging (only first few characters for security)
     print("🔧 Environment Variables Check:", flush=True)
-    env_vars_to_check = ['DEBUG_MODE', 'DEBUG', 'DISCORD_DEBUG_MODE', 'DISCORD_BOT_TOKEN', 'PORT', 'RENDER', 'RENDER_SERVICE_NAME']
+    env_vars_to_check = ['DEBUG_MODE', 'DEBUG', 'DISCORD_DEBUG_MODE', 'DISCORD_BOT_TOKEN', 'PORT', 'REPL_ID']
     for var in env_vars_to_check:
         value = os.getenv(var, 'NOT_SET')
         if 'TOKEN' in var and value != 'NOT_SET':
@@ -983,28 +983,31 @@ def main():
         print("   " + var + ": '" + display_value + "'", flush=True)
     print("="*60, flush=True)
     
-    # Check if we're running on Render.com
-    is_render = os.environ.get('RENDER_SERVICE_NAME') or os.environ.get('RENDER') or os.environ.get('PORT')
-    if is_render:
-        print("🌐 DETECTED: Running on Render.com", flush=True)
-        print("   Service Name: " + os.environ.get('RENDER_SERVICE_NAME', 'Unknown'), flush=True)
+    # Check if we're running on a cloud platform
+    is_cloud = os.environ.get('REPL_ID') or os.environ.get('PORT')
+    if is_cloud:
+        if os.environ.get('REPL_ID'):
+            print("🌐 DETECTED: Running on Replit.com", flush=True)
+            print("   Repl ID: " + os.environ.get('REPL_ID', 'Unknown'), flush=True)
+        else:
+            print("🌐 DETECTED: Running on cloud platform", flush=True)
         print("   Port: " + os.environ.get('PORT', 'Not set'), flush=True)
         
-        # Create a status file for Render.com
+        # Create a status file for cloud platforms
         try:
-            with open('render_status.txt', 'w') as f:
+            with open('cloud_status.txt', 'w') as f:
                 f.write("Bot started at: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "\n")
                 f.write("DEBUG_MODE: " + str(DEBUG_MODE) + "\n")
-                f.write("Service: " + os.environ.get('RENDER_SERVICE_NAME', 'Unknown') + "\n")
-            print("📄 Created render_status.txt file", flush=True)
+                f.write("Platform: " + ("Replit" if os.environ.get('REPL_ID') else "Cloud") + "\n")
+            print("📄 Created cloud_status.txt file", flush=True)
         except Exception as e:
             print("⚠️ Could not create status file: " + str(e), flush=True)
     else:
         print("💻 DETECTED: Running locally", flush=True)
     
-    # Start dummy web server in background (for Render.com Web Service compatibility)
-    if is_render:
-        print("🌐 Starting web server for Render.com compatibility...", flush=True)
+    # Start dummy web server in background (for cloud platform compatibility)
+    if is_cloud:
+        print("🌐 Starting web server for cloud platform compatibility...", flush=True)
         try:
             server_thread = Thread(target=start_dummy_server, daemon=True)
             server_thread.start()
@@ -1021,13 +1024,19 @@ def main():
         print("❌ CRITICAL ERROR: DISCORD_BOT_TOKEN not found!", flush=True)
         print("", flush=True)
         print("📋 Setup Instructions:", flush=True)
-        if is_render:
-            print("For Render.com:", flush=True)
-            print("1. Go to your Render.com dashboard", flush=True)
-            print("2. Select your service", flush=True)
-            print("3. Go to Environment tab", flush=True)
-            print("4. Add DISCORD_BOT_TOKEN environment variable", flush=True)
-            print("5. Deploy the changes", flush=True)
+        if is_cloud:
+            if os.environ.get('REPL_ID'):
+                print("For Replit.com:", flush=True)
+                print("1. Go to your Replit project", flush=True)
+                print("2. Click on 'Secrets' tab (lock icon)", flush=True)
+                print("3. Add DISCORD_BOT_TOKEN environment variable", flush=True)
+                print("4. Restart your Repl", flush=True)
+            else:
+                print("For cloud platform:", flush=True)
+                print("1. Go to your cloud platform dashboard", flush=True)
+                print("2. Find environment variables section", flush=True)
+                print("3. Add DISCORD_BOT_TOKEN environment variable", flush=True)
+                print("4. Restart/redeploy your service", flush=True)
         else:
             print("For local development:", flush=True)
             print("1. Copy .env.example to .env", flush=True)
