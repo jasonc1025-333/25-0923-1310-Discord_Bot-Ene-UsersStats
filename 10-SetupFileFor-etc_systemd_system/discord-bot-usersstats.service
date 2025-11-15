@@ -1,0 +1,26 @@
+[Unit]
+Description=Discord Bot Users Stats - Real-time Analytics Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jasonc1025
+Group=jasonc1025
+WorkingDirectory=/home/jasonc1025/Jwc-25-0514-2300-Bmax_B1Pro-Ubuntu_22/12j-Db/Dropbox/09l-Lin-SM/25-0923-1310-Discord_Bot-Ene-UsersStats
+ExecStart=/home/jasonc1025/Jwc-25-0514-2300-Bmax_B1Pro-Ubuntu_22/12j-Db/Dropbox/09l-Lin-SM/25-0923-1310-Discord_Bot-Ene-UsersStats/venv/bin/python /home/jasonc1025/Jwc-25-0514-2300-Bmax_B1Pro-Ubuntu_22/12j-Db/Dropbox/09l-Lin-SM/25-0923-1310-Discord_Bot-Ene-UsersStats/11-DiscordBot-Users_Stats-RunMe-ForDiscordUsers.py
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Security and resource limits
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=discord-bot-usersstats
+
+# Environment
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target

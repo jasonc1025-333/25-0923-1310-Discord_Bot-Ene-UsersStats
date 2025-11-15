@@ -256,7 +256,17 @@ async def on_message(message):
     # Don't count bot messages
     if message.author.bot:
         if DEBUG_MODE:
-            print(f"🔍 DEBUG: Ignoring bot message from {message.author.name}")
+            is_self = message.author.id == bot.user.id
+            bot_type = "THIS BOT (self)" if is_self else "OTHER BOT"
+            print(f"🔍 DEBUG: Ignoring bot message from {message.author.name} [{bot_type}]")
+            print(f"   ℹ️  Reason: Bot messages are excluded from analytics to track only human user activity")
+            print(f"   🤖 Bot ID: {message.author.id}")
+            if message.content:
+                print(f"   💬 Message content: {message.content[:50]}{'...' if len(message.content) > 50 else ''}")
+            elif message.embeds:
+                print(f"   📊 Message type: Embed message (no text content)")
+            else:
+                print(f"   💬 Message type: Empty or system message")
         return
     
     user_id = str(message.author.id)
@@ -302,7 +312,10 @@ async def on_reaction_add(reaction, user):
     # Don't count bot reactions
     if user.bot:
         if DEBUG_MODE:
-            print(f"🔍 DEBUG: Ignoring bot reaction from {user.name}")
+            print(f"🔍 DEBUG: Ignoring bot REACTION from {user.name}")
+            print(f"   ℹ️  Reason: Bot reactions are excluded from analytics to track only human user activity")
+            print(f"   🤖 Bot ID: {user.id}")
+            print(f"   😀 Emoji: {reaction.emoji}")
         return
     
     user_id = str(user.id)
