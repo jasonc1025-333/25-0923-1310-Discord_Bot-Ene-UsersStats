@@ -45,7 +45,13 @@ intents.message_content = True
 intents.reactions = True
 intents.members = True
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+# Create bot with explicit shard configuration to prevent double connections
+bot = commands.Bot(
+    command_prefix='!', 
+    intents=intents,
+    max_messages=1000,  # Limit message cache
+    chunk_guilds_at_startup=False  # Don't auto-chunk guilds
+)
 
 # Data storage
 DATA_FILE = '12-DiscordBot-Users_Stats-DataReport_Output.json'
@@ -610,6 +616,11 @@ async def stats_leaderboard(ctx, percentage: int = 50):
 @bot.command(name='stats_mini')
 async def stats_mini(ctx):
     """Show overall statistics for the current channel"""
+    if DEBUG_MODE:
+        print(f"\n🔍 DEBUG: stats_mini command STARTED")
+        print(f"   👤 User: {ctx.author.name}")
+        print(f"   📝 Channel: #{ctx.channel.name}")
+    
     channel_id = str(ctx.channel.id)
     
     # Ensure reaction data exists, scan if needed
@@ -670,7 +681,16 @@ async def stats_mini(ctx):
     
     embed.set_footer(text=f"Channel: #{ctx.channel.name}")
     
+    if DEBUG_MODE:
+        print(f"🔍 DEBUG: About to send stats_mini embed response")
+        print(f"   📊 Total messages: {total_messages}")
+        print(f"   👥 Active users: {len(active_users)}")
+    
     await ctx.send(embed=embed)
+    
+    if DEBUG_MODE:
+        print(f"🔍 DEBUG: stats_mini embed response SENT successfully")
+        print(f"   ✅ stats_mini command COMPLETED")
 
 
 @bot.command(name='stats_help')
