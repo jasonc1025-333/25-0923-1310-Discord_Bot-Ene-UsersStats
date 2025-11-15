@@ -240,6 +240,35 @@ async def ensure_reaction_data(ctx, progress_increment=10, scan_message="🔍 **
 # Load data on startup
 analytics_data = load_data()
 
+# Message deduplication cache to prevent Discord API duplicate events
+_processed_messages = {}
+_max_cache_size = 100
+
+def is_message_processed(message_id):
+    """Check if message has been processed recently"""
+    import time
+    current_time = time.time()
+    
+    # Clean old entries (older than 60 seconds)
+    expired = [msg_id for msg_id, timestamp in _processed_messages.items() 
+               if current_time - timestamp > 60]
+    for msg_id in expired:
+        del _processed_messages[msg_id]
+    
+    # Check if already processed
+    if message_id in _processed_messages:
+        return True
+    
+    # Mark as processed
+    _processed_messages[message_id] = current_time
+    
+    # Limit cache size
+    if len(_processed_messages) > _max_cache_size:
+        oldest = min(_processed_messages.items(), key=lambda x: x[1])
+        del _processed_messages[oldest[0]]
+    
+    return False
+
 @bot.event
 async def on_ready():
     print(f'{bot.user} has connected to Discord!')
@@ -259,6 +288,12 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
+    # Deduplicate messages - check if we've already processed this message
+    if is_message_processed(message.id):
+        if DEBUG_MODE:
+            print(f"🔍 DEBUG: DUPLICATE message detected and skipped (ID: {message.id})")
+        return
+    
     # Don't count bot messages
     if message.author.bot:
         if DEBUG_MODE:
@@ -267,6 +302,7 @@ async def on_message(message):
             print(f"🔍 DEBUG: Ignoring bot message from {message.author.name} [{bot_type}]")
             print(f"   ℹ️  Reason: Bot messages are excluded from analytics to track only human user activity")
             print(f"   🤖 Bot ID: {message.author.id}")
+            print(f"   🆔 Message ID: {message.id}")
             if message.content:
                 print(f"   💬 Message content: {message.content[:50]}{'...' if len(message.content) > 50 else ''}")
             elif message.embeds:
