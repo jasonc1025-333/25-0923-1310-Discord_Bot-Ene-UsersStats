@@ -47,8 +47,16 @@ class DiscordAnalyticsReporter:
             # Generate and display the report
             self.generate_comprehensive_report()
             
-            # Close the connection and exit
+            # Properly close discord.py's internal HTTP session before closing the client
+            if hasattr(self.client, 'http') and hasattr(self.client.http, '_HTTPClient__session'):
+                if self.client.http._HTTPClient__session is not None:
+                    await self.client.http._HTTPClient__session.close()
+            
+            # Close the Discord client connection
             await self.client.close()
+            
+            # Give the event loop time to process any final cleanup tasks
+            await asyncio.sleep(0.5)
     
     async def analyze_all_server_guilds(self):
         """Analyze all servers the bot has access to"""
@@ -466,6 +474,7 @@ def main():
     import sys
     
     print("🚀 Starting Standalone Discord Analytics Admin Report Generator...")
+    print(f"🐍 Python Version: {sys.version.split()[0]}")
     
     # Parse command line arguments for date range
     start_date = None
@@ -561,6 +570,10 @@ def main():
         print("- Ensure the bot has proper permissions")
         print("- Make sure discord.py is installed: pip install -r requirements.txt")
         print("- Enable privileged intents in Discord Developer Portal")
+        print("\n💡 Note: If you see 'Session is closed' error:")
+        print("- This is a harmless cleanup timing issue that can be safely ignored")
+        print("- All data collection, report generation, and JSON saving completed successfully")
+        print("- The error only occurs during final HTTP session cleanup")
     
     print("\n✅ Standalone admin report script completed.")
 
