@@ -7,45 +7,28 @@ import logging
 from datetime import datetime, timezone
 from collections import defaultdict
 import asyncio
-from threading import Thread
-import http.server
-import socketserver
 
 # Debug mode flag (will be set after loading environment variables)
 DEBUG_MODE = False
 
-# Set up logging that works better with cloud platforms
+# Set up logging for local development
 def setup_logging():
-    """Set up logging for cloud platforms"""
+    """Set up logging for local development"""
     # Create logs directory if it doesn't exist
     os.makedirs('logs', exist_ok=True)
     
-    # Check if we're running on a cloud platform (Replit, etc.)
-    is_cloud = os.environ.get('REPL_ID') or os.environ.get('PORT')
+    # For local development: Use multiple handlers
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler('logs/discord_bot.log', encoding='utf-8')
+        ],
+        force=True  # Override any existing configuration
+    )
     
-    if is_cloud:
-        # For cloud platforms: Use only stdout to avoid duplication
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.StreamHandler(sys.stdout)
-            ],
-            force=True  # Override any existing configuration
-        )
-    else:
-        # For local development: Use multiple handlers
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.StreamHandler(sys.stdout),
-                logging.FileHandler('logs/discord_bot.log', encoding='utf-8')
-            ],
-            force=True  # Override any existing configuration
-        )
-    
-    # Ensure immediate flushing for cloud platforms
+    # Ensure immediate flushing
     for handler in logging.getLogger().handlers:
         if isinstance(handler, logging.StreamHandler):
             handler.stream.reconfigure(line_buffering=True)
@@ -55,38 +38,6 @@ def setup_logging():
 # Initialize logger
 logger = setup_logging()
 
-def log_and_print(message, level='info'):
-    """Log message for cloud platforms"""
-    # Check if we're running on a cloud platform
-    is_cloud = os.environ.get('REPL_ID') or os.environ.get('PORT')
-    
-    if is_cloud:
-        # For cloud platforms: Only use logging (no print to avoid duplication)
-        if level == 'error':
-            logger.error(message)
-        elif level == 'warning':
-            logger.warning(message)
-        elif level == 'debug':
-            logger.debug(message)
-        else:
-            logger.info(message)
-    else:
-        # For local development: Use both logging and print
-        if level == 'error':
-            logger.error(message)
-        elif level == 'warning':
-            logger.warning(message)
-        elif level == 'debug':
-            logger.debug(message)
-        else:
-            logger.info(message)
-        
-        # Also print for immediate visibility in local development
-        print(message, flush=True)
-    
-    # Force flush for immediate visibility
-    sys.stdout.flush()
-    sys.stderr.flush()
 
 # Bot configuration
 intents = discord.Intents.default()
@@ -861,69 +812,6 @@ async def debug_clear(ctx):
     await ctx.send("🔍 **Debug**: All analytics data cleared!")
     print(f"\n🔍 DEBUG: Analytics data cleared by {ctx.author.name}")
 
-def start_dummy_server():
-    """Start a dummy web server for cloud platform compatibility"""
-    PORT = int(os.environ.get('PORT', 8000))
-    
-    if DEBUG_MODE:
-        print(f"🔍 DEBUG: Starting HTTP server on port {PORT}")
-        print(f"   Environment variables:")
-        print(f"     PORT: {os.environ.get('PORT', 'Not set')}")
-        print(f"     REPL_ID: {os.environ.get('REPL_ID', 'Not set')}")
-    
-    class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
-        def do_GET(self):
-            if DEBUG_MODE:
-                print(f"🔍 DEBUG: HTTP request received - {self.path} from {self.client_address[0]}")
-            
-            if self.path == '/health':
-                self.send_response(200)
-                self.send_header('Content-type', 'text/plain')
-                self.end_headers()
-                self.wfile.write(b'25-0923-1310-Discord_Bot-Ene-UsersStats is running!')
-                if DEBUG_MODE:
-                    print(f"   ✅ Health check response sent")
-            elif self.path == '/':
-                self.send_response(200)
-                self.send_header('Content-type', 'text/html')
-                self.end_headers()
-                html_content = '''
-                <html>
-                <head><title>25-0923-1310-Discord_Bot-Ene-UsersStats</title></head>
-                <body>
-                    <h1>25-0923-1310-Discord_Bot-Ene-UsersStats</h1>
-                    <p>Bot is online and running!</p>
-                    <p>Tracking Discord messages and reactions</p>
-                    <p><a href="/health">Health Check</a></p>
-                </body>
-                </html>
-                '''
-                self.wfile.write(html_content.encode('utf-8'))
-                if DEBUG_MODE:
-                    print(f"   ✅ Main page response sent")
-            else:
-                self.send_response(404)
-                self.send_header('Content-type', 'text/plain')
-                self.end_headers()
-                self.wfile.write(b'404 Not Found')
-                if DEBUG_MODE:
-                    print(f"   ❌ 404 response sent for {self.path}")
-    
-    try:
-        with socketserver.TCPServer(("", PORT), HealthCheckHandler) as httpd:
-            print(f"🌐 Web server running on port {PORT} for cloud platform")
-            if DEBUG_MODE:
-                print(f"   ✅ HTTP server started successfully")
-                print(f"   🔗 Available endpoints:")
-                print(f"     http://localhost:{PORT}/ - Main status page")
-                print(f"     http://localhost:{PORT}/health - Health check")
-            httpd.serve_forever()
-    except Exception as e:
-        if DEBUG_MODE:
-            print(f"   ❌ Error starting HTTP server: {e}")
-        else:
-            print(f"❌ Error starting web server: {e}")
-
 def main():
     """Main function to run the Discord Analytics Bot"""
     print("🚀 DISCORD BOT STARTUP INITIATED", flush=True)
@@ -932,119 +820,31 @@ def main():
     print("📁 Working Directory: " + os.getcwd(), flush=True)
     print("="*60, flush=True)
     
+    # Load environment variables
     try:
         from dotenv import load_dotenv
-        print("✅ dotenv import successful", flush=True)
-    except ImportError as e:
-        print("⚠️ dotenv not available: " + str(e), flush=True)
-        print("   This is normal for cloud deployments", flush=True)
-    
-    # jwc 25-1110-2300: Get 'DISCORD_BOT_TOKEN'
-    # Load environment variables from custom .env file (local development only)
-    # * If file not found (e.g. running on Render.com), then nothing is loaded and continues error-free
-    try:
         load_dotenv('.env-SecretDiscordBotToken-NotPublishToGithub')
         print("📁 Local .env file loaded successfully", flush=True)
     except Exception as e:
         print("📁 No local .env file found (normal for cloud deployment)", flush=True)
         print("   Details: " + str(e), flush=True)
     
-    # Set DEBUG_MODE after loading environment variables
-    # Check multiple possible environment variable names for compatibility
+    # Set DEBUG_MODE
     global DEBUG_MODE
-    debug_env_value = (
-        os.getenv('DEBUG_MODE') or 
-        os.getenv('DEBUG') or 
-        os.getenv('DISCORD_DEBUG_MODE') or 
-        'NOT_SET'
-    )
+    debug_env_value = os.getenv('DEBUG_MODE', 'NOT_SET')
     DEBUG_MODE = debug_env_value.lower() in ['true', '1', 'yes', 'on']
     
-    # ALWAYS print DEBUG_MODE status at startup for troubleshooting
-    print("🔧 DEBUG_MODE Environment Variable: '" + debug_env_value + "'", flush=True)
-    print("🔧 DEBUG_MODE Evaluated As: " + str(DEBUG_MODE), flush=True)
+    print(f"🔧 DEBUG_MODE: {DEBUG_MODE}", flush=True)
     if DEBUG_MODE:
-        print("✅ DEBUG MODE IS ENABLED - You should see detailed debug output", flush=True)
-        # Set logging level to DEBUG when debug mode is enabled
         logging.getLogger().setLevel(logging.DEBUG)
-    else:
-        print("❌ DEBUG MODE IS DISABLED - Set DEBUG_MODE=true to enable debug output", flush=True)
     
-    # Show all environment variables for debugging (only first few characters for security)
-    print("🔧 Environment Variables Check:", flush=True)
-    env_vars_to_check = ['DEBUG_MODE', 'DEBUG', 'DISCORD_DEBUG_MODE', 'DISCORD_BOT_TOKEN', 'PORT', 'REPL_ID']
-    for var in env_vars_to_check:
-        value = os.getenv(var, 'NOT_SET')
-        if 'TOKEN' in var and value != 'NOT_SET':
-            # Only show first 10 characters of tokens for security
-            display_value = value[:10] + '...' if len(value) > 10 else value
-        else:
-            display_value = value
-        print("   " + var + ": '" + display_value + "'", flush=True)
-    print("="*60, flush=True)
-    
-    # Check if we're running on a cloud platform
-    is_cloud = os.environ.get('REPL_ID') or os.environ.get('PORT')
-    if is_cloud:
-        if os.environ.get('REPL_ID'):
-            print("🌐 DETECTED: Running on Replit.com", flush=True)
-            print("   Repl ID: " + os.environ.get('REPL_ID', 'Unknown'), flush=True)
-        else:
-            print("🌐 DETECTED: Running on cloud platform", flush=True)
-        print("   Port: " + os.environ.get('PORT', 'Not set'), flush=True)
-        
-        # Create a status file for cloud platforms
-        try:
-            with open('cloud_status.txt', 'w') as f:
-                f.write("Bot started at: " + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "\n")
-                f.write("DEBUG_MODE: " + str(DEBUG_MODE) + "\n")
-                f.write("Platform: " + ("Replit" if os.environ.get('REPL_ID') else "Cloud") + "\n")
-            print("📄 Created cloud_status.txt file", flush=True)
-        except Exception as e:
-            print("⚠️ Could not create status file: " + str(e), flush=True)
-    else:
-        print("💻 DETECTED: Running locally", flush=True)
-    
-    # Start dummy web server in background (for cloud platform compatibility)
-    if is_cloud:
-        print("🌐 Starting web server for cloud platform compatibility...", flush=True)
-        try:
-            server_thread = Thread(target=start_dummy_server, daemon=True)
-            server_thread.start()
-            print("✅ Web server started successfully", flush=True)
-        except Exception as e:
-            print("❌ Error starting web server: " + str(e), flush=True)
-    
-    # jwc 25-1110-2300: Apply Above 'DISCORD_BOT_TOKEN'
-    # * 'DISCORD_BOT_TOKEN' should be set in the local .env file 
-    # * -or- as Cloud environment_variable (e.g. Render.com)
+    # Get Discord token
     token = os.getenv('DISCORD_BOT_TOKEN')
     
     if not token:
-        print("❌ CRITICAL ERROR: DISCORD_BOT_TOKEN not found!", flush=True)
-        print("", flush=True)
-        print("📋 Setup Instructions:", flush=True)
-        if is_cloud:
-            if os.environ.get('REPL_ID'):
-                print("For Replit.com:", flush=True)
-                print("1. Go to your Replit project", flush=True)
-                print("2. Click on 'Secrets' tab (lock icon)", flush=True)
-                print("3. Add DISCORD_BOT_TOKEN environment variable", flush=True)
-                print("4. Restart your Repl", flush=True)
-            else:
-                print("For cloud platform:", flush=True)
-                print("1. Go to your cloud platform dashboard", flush=True)
-                print("2. Find environment variables section", flush=True)
-                print("3. Add DISCORD_BOT_TOKEN environment variable", flush=True)
-                print("4. Restart/redeploy your service", flush=True)
-        else:
-            print("For local development:", flush=True)
-            print("1. Copy .env.example to .env", flush=True)
-            print("2. Edit .env and add your Discord bot token", flush=True)
-            print("3. Run this script again", flush=True)
-        print("", flush=True)
-        print("🔗 Get a bot token at: https://discord.com/developers/applications", flush=True)
-        print("🛑 EXITING DUE TO MISSING TOKEN", flush=True)
+        print("❌ ERROR: DISCORD_BOT_TOKEN not found!", flush=True)
+        print("Setup: Add token to .env-SecretDiscordBotToken-NotPublishToGithub", flush=True)
+        print("Get token: https://discord.com/developers/applications", flush=True)
         return
     
     print("✅ DISCORD_BOT_TOKEN found and loaded", flush=True)
