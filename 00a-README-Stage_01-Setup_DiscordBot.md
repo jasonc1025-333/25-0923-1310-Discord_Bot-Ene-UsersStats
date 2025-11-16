@@ -1,5 +1,9 @@
 # Discord Analytics - Standalone Admin Report Generator
 
+# IMPORTANT NOTES
+- jwc 25-1115-2100 For 'news_main', '!stats' failed to retrieve full_history, 
+  - so needed to increase 'History Scan Limit' from 1,000 to 10,000 and deleting '12-DiscordBot-Users_Stats-DataReport_Output.json' to force a new full-rescan  
+
 A comprehensive Discord analytics tool that scans all server channels and generates detailed admin reports of user activity including message counts and emoji reaction usage.
 
 ## Features

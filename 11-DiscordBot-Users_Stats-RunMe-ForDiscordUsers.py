@@ -178,7 +178,10 @@ async def ensure_reaction_data(ctx, progress_increment=10, scan_message="🔍 **
         try:
             messages_scanned = 0
             reactions_found = 0
-            limit = 1000  # Scan last 1000 messages
+
+            ### jwc 25-1115-2100 Increase limit from 1,000 to 10,000 for more comprehensive history scan (vs. just today)
+            limit = 10000  # Scan last 10,000 messages for comprehensive history
+            
             last_update_percent = 0
             
             async for message in ctx.channel.history(limit=limit):
@@ -590,7 +593,7 @@ async def stats_leaderboard(ctx, percentage: int = 50):
     )
     
     # Helper function to format leaderboard
-    def format_leaderboard(user_scores, limit):
+    async def format_leaderboard(user_scores, limit):
         if not user_scores:
             return "No data available"
         
@@ -599,8 +602,17 @@ async def stats_leaderboard(ctx, percentage: int = 50):
         
         for i, (user_id, score) in enumerate(sorted_users, 1):
             try:
-                user = bot.get_user(int(user_id))
-                username = user.display_name if user else f"User {user_id}"
+                # Try to get member from guild first (most reliable)
+                member = ctx.guild.get_member(int(user_id))
+                if member:
+                    username = member.display_name
+                else:
+                    # Fallback: Try to fetch user from Discord API
+                    try:
+                        user = await bot.fetch_user(int(user_id))
+                        username = user.display_name if user else f"User {user_id}"
+                    except:
+                        username = f"User {user_id}"
             except:
                 username = f"User {user_id}"
             
@@ -609,22 +621,22 @@ async def stats_leaderboard(ctx, percentage: int = 50):
         
         return leaderboard_text
     
-    # Add each category as a field
+    # Add each category as a field (await the async function)
     embed.add_field(
         name="💬 Messages Posted",
-        value=format_leaderboard(categories['messages'], users_to_show),
+        value=await format_leaderboard(categories['messages'], users_to_show),
         inline=True
     )
     
     embed.add_field(
         name="👍 Reactions Given",
-        value=format_leaderboard(categories['reactions_given'], users_to_show),
+        value=await format_leaderboard(categories['reactions_given'], users_to_show),
         inline=True
     )
     
     embed.add_field(
         name="⭐ Reactions Received",
-        value=format_leaderboard(categories['reactions_received'], users_to_show),
+        value=await format_leaderboard(categories['reactions_received'], users_to_show),
         inline=True
     )
     
